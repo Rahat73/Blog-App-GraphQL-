@@ -1,6 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 import * as bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
+import { Secret } from "jsonwebtoken";
+import config from "../config";
+import { jwtHelpers } from "../utiliy/jwt-helpers";
 
 const primsa = new PrismaClient();
 
@@ -8,6 +10,7 @@ interface IUserInfo {
   name: string;
   email: string;
   password: string;
+  bio?: string;
 }
 
 export const resolvers = {
@@ -18,13 +21,29 @@ export const resolvers = {
   },
   Mutation: {
     signup: async (parent: any, args: IUserInfo, context: any) => {
-      const hashedPassword = await bcrypt.hash(args.password, 10);
-      const newUser = await primsa.user.create({
-        data: { ...args, password: hashedPassword },
+      const isUserExists = await primsa.user.findFirst({
+        where: { email: args.email },
       });
 
-      const token = jwt.sign({ userId: newUser.id }, "signature", {
-        expiresIn: "1d",
+      if (isUserExists) {
+        return {
+          authError: "User already exists",
+          token: null,
+        };
+      }
+
+      const hashedPassword = await bcrypt.hash(args.password, 10);
+      const newUser = await primsa.user.create({
+        data: { name: args.name, email: args.email, password: hashedPassword },
+      });
+
+      const token = jwtHelpers.generateToken(
+        { id: newUser.id },
+        config.jwt.JWT_SECRET as Secret
+      );
+
+      const profile = await primsa.profile.create({
+        data: { bio: args.bio || "", userId: newUser.id },
       });
 
       return {
@@ -53,9 +72,10 @@ export const resolvers = {
           token: null,
         };
       }
-      const token = jwt.sign({ userId: user.id }, "signature", {
-        expiresIn: "1d",
-      });
+      const token = jwtHelpers.generateToken(
+        { id: user.id },
+        config.jwt.JWT_SECRET as Secret
+      );
       return {
         authError: null,
         token: token,
