@@ -1,3 +1,5 @@
+import { checkUserAccess } from "../../utiliy/checkUserAccess";
+
 export const postResolvers = {
   addPost: async (parent: any, { post }: any, { prisma, userInfo }: any) => {
     if (!userInfo) {
@@ -25,6 +27,7 @@ export const postResolvers = {
       post: newPost,
     };
   },
+
   updatePost: async (
     parent: any,
     { postId, post }: any,
@@ -37,34 +40,7 @@ export const postResolvers = {
       };
     }
 
-    const user = prisma.user.findFirst({
-      where: { id: userInfo.userId },
-    });
-
-    if (!user) {
-      return {
-        userError: "User not found",
-        post: null,
-      };
-    }
-
-    const postToUpdate = await prisma.post.findFirst({
-      where: { id: Number(postId) },
-    });
-
-    if (!post) {
-      return {
-        userError: "Post not found",
-        post: null,
-      };
-    }
-
-    if (userInfo.userId !== postToUpdate.authorId) {
-      return {
-        userError: "You are not authorized to update this post",
-        post: null,
-      };
-    }
+    const error = await checkUserAccess(prisma, userInfo.userId, postId);
 
     const updatedPost = await prisma.post.update({
       where: { id: Number(postId) },
@@ -73,6 +49,40 @@ export const postResolvers = {
     return {
       userError: null,
       post: updatedPost,
+    };
+  },
+
+  deletePost: async (
+    parent: any,
+    { postId }: any,
+    { prisma, userInfo }: any
+  ) => {
+    if (!userInfo) {
+      return {
+        userError: "User not authorized",
+        post: null,
+      };
+    }
+
+    const error = await checkUserAccess(
+      prisma,
+      userInfo.userId,
+      Number(postId)
+    );
+
+    console.log(error);
+
+    if (error) {
+      return error;
+    }
+
+    const deletedPost = await prisma.post.delete({
+      where: { id: Number(postId) },
+    });
+
+    return {
+      userError: null,
+      post: deletedPost,
     };
   },
 };
