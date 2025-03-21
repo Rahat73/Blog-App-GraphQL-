@@ -30,6 +30,7 @@ export const typeDefs = `#graphql
     me: User
     users: [User]
     posts: [Post]
+    profile(userId: ID!): Profile
   }
 
   type Mutation {
