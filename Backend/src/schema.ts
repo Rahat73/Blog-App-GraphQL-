@@ -38,6 +38,7 @@ export const typeDefs = `#graphql
     addPost(post: PostInput): PostPayload
     updatePost(postId: ID! ,post: PostInput!): PostPayload
     deletePost(postId: ID!): PostPayload
+    publishPost(postId: ID!): PostPayload
   }
 
   type UserAuthPayload {
